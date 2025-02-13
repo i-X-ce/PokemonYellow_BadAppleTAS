@@ -31,7 +31,7 @@ end
 
 on_input = function(subframe)
     local frame = movie.currentframe()
-    line_input(input_data[frame + 1])
+    line_input(input_data[frame])
 end
 
 function line_input(line)
