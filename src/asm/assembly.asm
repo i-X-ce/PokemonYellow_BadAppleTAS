@@ -5,7 +5,10 @@ load "ACE", wramx[$d9b2]
 
 v_start_addr equ $9800
 scene_addr equ $d000
-write_cnt equ $d002 ; 書き込みカウンタ
+write_cnt equ $d002 ; 書き込みカウンタ タイルのうちの何バイト目か
+tile_cnt equ $d003 ; タイルカウンタ タイルのうちの何番目か 2byte
+; $d004
+movie_buffer equ $c100 ; ムービーバッファ
 
 main:
     ld a, 2 ; モードの変更
@@ -26,11 +29,43 @@ main:
     xor a  
 .skp180
     dec c 
-    jr nz, .init_hlooploop
+    jr nz, .init_hloop
     dec b
     ld de, 11 
     add hl, de
-    jr nz. .init_vloop
+    jr nz, .init_vloop
+
+.mainloop
+    ld hl, movie_buffer
+    ld b, 0 ;y
+.writeloop_y
+    ld c, 0 ;x
+.writeloop_x
+    push bc 
+    ld b, 0 
+.writeloop
+    push bc 
+
+    call get_input
+
+    pop bc
+    inc b 
+    ld a, b 
+    ld [write_cnt], a
+    cp 4 
+    jr nc, .writeloop
+    pop bc 
+    inc c 
+    ld a, c
+    ld [tile_cnt + 1], a
+    cp 20 
+    jr nc, .writeloop_x
+    inc b 
+    ld a, b
+    ld [tile_cnt], a
+    cp 18
+    jr nc, .writeloop_y
+    jr .mainloop
 
 
 ; 入力を取る

@@ -1,7 +1,8 @@
 local USERPROFILE = os.getenv("USERPROFILE"):gsub("\\", "/") .. "/Desktop/PokemonYellow_BadAppleTAS/src/TASproject/"
 local input_file = io.open(USERPROFILE .. "input.txt", 'r')
 local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r')
-local scene = 0; -- 0: セットアップ, 1: プログラム入力
+local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
+local movie_frame_cnt = 0 -- 何枚目の画像か
 
 if input_file == nil or inputprogram_file == nil then
     print("Error: input file not found")
@@ -39,6 +40,7 @@ end
 
 on_input = function(subframe)
     local frame = movie.currentframe()
+    print("frame: " .. frame  .. ", scene: " .. scene)
     if scene == 0 then -- セットアップ
         line_input(input_data[frame])
         if memory.readbyte(0x1000) == 1 then -- サブフレーム実行のフラグをチェック
@@ -47,16 +49,22 @@ on_input = function(subframe)
     end
     
     if scene == 1 then -- プログラム入力
-        -- if subframe == false then
-        --     return
-        -- end
         local inputprogram_startaddr = 0x19B2
         local inputprogram_cnt = memory.readbyte(0x1001) + 1
         local byte = input2byte(inputprogram_data[inputprogram_cnt])
         line_input(inputprogram_data[inputprogram_cnt])
-        print("byte: " .. byte .. ", memory:" .. memory.readbyte(inputprogram_startaddr + inputprogram_cnt - 1))
+
+        if memory.readbyte(0x1000) == 2 then
+            scene = 2
+        end
     end
-    print("frame: " .. frame  .. ", scene: " .. scene)
+
+    if scene == 2 then -- グラフィック入力
+        local write_cnt = memory.readbyte(0x1002)
+
+        local send_data = get_movie(movie_frame_cnt, write_cnt)
+        line_input(send_data)
+    end
 
 end
 
@@ -97,4 +105,11 @@ function input2byte(line)
         end
     end
     return byte
+end
+
+function get_movie(frame, cnt)
+    if (cnt / 4) % 2 == 1 then
+        return "UDLRABsS"
+    end
+    return "."
 end
