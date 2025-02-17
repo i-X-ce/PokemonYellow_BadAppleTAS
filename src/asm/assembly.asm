@@ -17,6 +17,7 @@ main:
     xor a  
     ld [write_cnt], a ; 書き込みカウンタの初期化
 
+    call lcdc_stop
     ld hl, v_start_addr ; VRAMの初期化
     ld b, 18 
 .init_vloop
@@ -31,9 +32,10 @@ main:
     dec c 
     jr nz, .init_hloop
     dec b
-    ld de, 11 
+    ld de, 12 
     add hl, de
     jr nz, .init_vloop
+    call lcdc_on
 
 .mainloop
     ld hl, movie_buffer

@@ -42,21 +42,22 @@ on_input = function(subframe)
     local frame = movie.currentframe()
     print("frame: " .. frame  .. ", scene: " .. scene)
     if scene == 0 then -- セットアップ
-        line_input(input_data[frame])
         if memory.readbyte(0x1000) == 1 then -- サブフレーム実行のフラグをチェック
             scene = 1
         end
+
+        line_input(input_data[frame])
     end
     
     if scene == 1 then -- プログラム入力
+        if memory.readbyte(0x1000) == 2 then
+            scene = 2
+        end
+
         local inputprogram_startaddr = 0x19B2
         local inputprogram_cnt = memory.readbyte(0x1001) + 1
         local byte = input2byte(inputprogram_data[inputprogram_cnt])
         line_input(inputprogram_data[inputprogram_cnt])
-
-        if memory.readbyte(0x1000) == 2 then
-            scene = 2
-        end
     end
 
     if scene == 2 then -- グラフィック入力
