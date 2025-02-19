@@ -27,6 +27,26 @@ quantized = np.digitize(image, bins) - 1  # 0～3のインデックスに変換
 levels = np.array([0, 85, 170, 255], dtype=np.uint8)  # 4つのグレースケールの値
 image_4color = levels[quantized]  # 量子化した画像を適用
 
+if quality == 2:
+    tileDict = { 0: 0, 85: 1, 170: 2, 255: 3 }
+    inputDict = { 0: "A", 1: "B", 2: "s", 3: "S" }
+    tileFile = open("tile.txt", "w")
+    for i in range(0, lenY):
+        for j in range(0, lenX):
+            byte = 0
+            for k in range(0, 2):
+                for l in range(0, 2):
+                    byte = byte * 4 + tileDict[image_4color[i * 2 + k][j * 2 + l]]
+            for m in range(0, 2):
+                writeStr = ""
+                for key, value in inputDict.items():
+                    if (not (byte >> (0 if m == 0 else 4)) & (1 << key)) ^ (key == 1):
+                        writeStr += value
+                    else:
+                        writeStr += "."
+                tileFile.write(writeStr + "\n")
+    tileFile.close()
+
 # 表示のために画像をリサイズ・ピクセルをはっきり表示
 image_4color = cv2.resize(image_4color, (lenX * 25, lenY * 25), interpolation=cv2.INTER_NEAREST)
 

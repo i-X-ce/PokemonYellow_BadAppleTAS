@@ -1,8 +1,10 @@
 local USERPROFILE = os.getenv("USERPROFILE"):gsub("\\", "/") .. "/Desktop/PokemonYellow_BadAppleTAS/src/TASproject/"
-local input_file = io.open(USERPROFILE .. "input.txt", 'r')
-local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r')
+local input_file = io.open(USERPROFILE .. "input.txt", 'r') -- セットアップまでのボタン操作
+local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r') -- 画像入力に使うプログラム
+local inputmovie_file = io.open(USERPROFILE .. "movie.txt", 'r') -- 画像
+
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
-local movie_frame_cnt = 0 -- 何枚目の画像か
+local movie_frame_cnt = -2 -- 何枚目の画像か
 
 if input_file == nil or inputprogram_file == nil then
     print("Error: input file not found")
@@ -43,6 +45,11 @@ for line in inputprogram_file:lines() do
     table.insert(inputprogram_data, line)
 end
 
+local movie_data = {}
+for line in inputmovie_file:lines() do
+    table.insert(movie_data, line)
+end
+
 on_input = function(subframe)
     local frame = movie.currentframe()
     print("frame: " .. frame  .. ", scene: " .. scene)
@@ -68,8 +75,13 @@ on_input = function(subframe)
     if scene == 2 then -- グラフィック入力
         local write_cnt = memory.readbyte(0x1002)
 
-        local send_data = get_movie()
+        local send_data = get_movie(movie_frame_cnt)
         line_input(send_data)
+
+        movie_frame_cnt = movie_frame_cnt + 1
+        -- if subframe then
+        --     movie_frame_cnt = movie_frame_cnt + 1
+        -- end
     end
 
 end
@@ -124,7 +136,10 @@ function byte2input(byte)
     return input
 end
 
-function get_movie()
-    local frame = movie.currentframe()
-    return byte2input(frame)
+-- 画像を取得
+function get_movie(frame)
+    if frame < 1 then 
+        return movie_data[1]
+    end
+    return movie_data[movie_frame_cnt % #movie_data + 1]
 end
