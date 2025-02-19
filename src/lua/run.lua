@@ -4,7 +4,7 @@ local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r') -- 画
 local inputmovie_file = io.open(USERPROFILE .. "movie.txt", 'r') -- 画像
 
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
-local movie_frame_cnt = -2 -- 何枚目の画像か
+local movie_frame_cnt = -1 -- 何枚目の画像か
 
 if input_file == nil or inputprogram_file == nil then
     print("Error: input file not found")
@@ -45,10 +45,10 @@ for line in inputprogram_file:lines() do
     table.insert(inputprogram_data, line)
 end
 
-local movie_data = {}
-for line in inputmovie_file:lines() do
-    table.insert(movie_data, line)
-end
+-- local movie_data = {}
+-- for line in inputmovie_file:lines() do
+--     table.insert(movie_data, line)
+-- end
 
 on_input = function(subframe)
     local frame = movie.currentframe()
@@ -139,7 +139,7 @@ end
 -- 画像を取得
 function get_movie(frame)
     if frame < 1 then 
-        return movie_data[1]
+        return ""
     end
-    return movie_data[movie_frame_cnt % #movie_data + 1]
+    return inputmovie_file:read()
 end
