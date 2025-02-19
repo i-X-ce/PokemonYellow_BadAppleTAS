@@ -3,19 +3,20 @@ include "yellow_1.2_rom0.asm"
 SECTION "Test",ROM0
 load "ACE", wramx[$d9b2]
 
-v_start_addr equ $9800
+BG_addr equ $9800
+WIN_addr equ $9c00
 scene_addr equ $d000
-write_cnt equ $d002 ; 書き込みカウンタ タイルのうちの何バイト目か
-tile_cnt equ $d003 ; タイルカウンタ タイルのうちの何番目か 2byte
-; $d004
-movie_buffer equ $c100 ; ムービーバッファ
+write_addr equ $d001 ; 書き込み中のアドレスを保存 2byte
+write_addr_high equ $d002
+
+write_line equ 9 ; 1frameに書き込む行数
 
 main:
     ld a, 2 ; モードの変更
     ld [scene_addr], a 
 
     xor a  
-    ld [write_cnt], a ; 書き込みカウンタの初期化
+    ldh [$ff00+$4a], a
 
     ld hl, $ff40
     set 4, [hl]
@@ -25,69 +26,82 @@ main:
 
     call lcdc_stop
     call init_tile
-    ld hl, v_start_addr ; VRAMの初期化
-    ld b, 18 
-.init_vloop
-    ld c, 20 
-.init_hloop
-    ld [hli], a
-    inc a 
-    dec c 
-    jr nz, .init_hloop
-    dec b
-    ld de, 12 
-    add hl, de
-    jr nz, .init_vloop
     call lcdc_on
 
 .mainloop
-    ld hl, movie_buffer
+    ld hl, BG_addr
+    ldh a, [$ff00+$40]
+    bit 5, a 
+    jr nz, .WIN_skp
+    ld hl, WIN_addr
+.WIN_skp
+    jr .input_start
 
-    ld bc, 360 
-.inputloop
-    push hl 
+    ; 途中から始める場合
+    .mainloop_
+    ld a, [write_addr]
+    ld l, a 
+    ld a, [write_addr_high]
+    ld h, a
+
+.input_start
+    ld b, write_line
+    .input_vloop
+    ld c, 20
+.input_hloop
     push bc 
     call get_input
-    pop bc 
-    pop hl 
-    ld [hli], a
-    dec bc 
-    ld a, c 
-    or b 
-    jr nz, .inputloop
-
-    ld hl, v_start_addr
-    ld de, movie_buffer
-    ld b, 18 
-.output_vloop
-    ld c, 20 
-.output_hloop
-    push bc 
-.output_wait 
+    ld b, a 
+.input_wait 
     ldh a, [$ff00+$41]
     and $03 
-    cp 2
-    jr nc, .output_wait
-    ld a, [de]
-    inc de 
-    ld [hli], a
-    pop bc 
+    cp 3
+    jr nc, .input_wait
+    ld [hl], b
+    inc hl 
+    pop bc
     dec c 
-    jr nz, .output_hloop
-    ld a, 12 
-    add l 
-    ld l, a
-    ld a, 0 
-    adc h
-    ld h, a
+    jr nz, .input_hloop
+    ld de, 12
+    add hl, de
     dec b
-    jr nz, .output_vloop
+    jr nz, .input_vloop
 
-.wait_next_frame ;次の画面更新まで待つ
+    ; 書き込みが終了したか判定
+    ld a, l 
+    cp $40
+    jr nz, .write_save
+    ld a, h
+    cp $9a
+    jr z, .write_switch
+    cp $9e
+    jr z, .write_switch
+    jr .write_save
+
+.write_switch
+    ; 書き込み終了時の処理
+    call wait_next_frame
+    ldh a, [$ff00+$40]
+    xor $20
+    ldh [$ff00+$40], a
+    jr .mainloop
+
+.write_save
+    ; 書き込み場所を途中保存
+    ld a, l 
+    ld [write_addr], a
+    ld a, h 
+    ld [write_addr_high], a
+    call wait_next_frame
+    jr .mainloop_
+
+
+wait_next_frame: ;次の画面更新まで待つ
+.loop
     ldh a, [$ff00+$44]
     and a  
-    jr nz, .wait_next_frame
-    jr .mainloop
+    jr nz, .loop
+    ret 
 
 
 ; タイルを初期化する

@@ -28,6 +28,11 @@ local input_dict = {
     ["P"] = -1,
 }
 
+local input_dict_reverse = {}
+for key, value in pairs(input_dict) do
+    input_dict_reverse[value] = key
+end
+
 local input_data = {}
 for line in input_file:lines() do
     table.insert(input_data, line)
@@ -63,7 +68,7 @@ on_input = function(subframe)
     if scene == 2 then -- グラフィック入力
         local write_cnt = memory.readbyte(0x1002)
 
-        local send_data = get_movie(movie_frame_cnt, write_cnt)
+        local send_data = get_movie()
         line_input(send_data)
     end
 
@@ -92,7 +97,7 @@ function line_input(line)
     end
 end
 
--- 入力文字列を数値にもどす
+-- 入力文字列を数値に変換
 function input2byte(line)
     local byte = 0
     for i = 1, #line do
@@ -108,9 +113,18 @@ function input2byte(line)
     return byte
 end
 
-function get_movie(frame, cnt)
-    if (cnt / 4) % 2 == 1 then
-        return "UDLRABsS"
+-- 数値を入力文字列に変換
+function byte2input(byte)
+    local input = ""
+    for i = 0, 7 do
+        if bit.band(byte, bit.lshift(1, i)) ~= 0 then
+            input = input .. input_dict_reverse[i]
+        end
     end
-    return "."
+    return input
+end
+
+function get_movie()
+    local frame = movie.currentframe()
+    return byte2input(frame)
 end

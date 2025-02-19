@@ -50,3 +50,33 @@ D2EF~
 1. 最後のフレームにカーソルを合わせておく
 1. 最初のフレームに移動し、左クリックでドラッグする
 1. 右クリックを押しながらホイールを回す
+
+## lsnes メモ
+
+### ゲームの起動
+
+適当な ROM をドラッグするだけ。  
+パスに日本語があると起動しない。
+
+### lua の実行
+
+Tools の「Run lua script」を選ぶ
+実行前に「Reset Lua VM」をしないと前に実行したスクリプトが残り続けるので注意
+
+### movie の再起動
+
+Movie の「Rewind to start」を選ぶ
+Movie の「Readonly mode」にチェックが入っていると入力がされないので注意
+
+### コントローラ入力の確認
+
+Tools の「Edit movie」を選ぶ
+
+### 行っている一連の動作
+
+1. Gameboy の「Pause/Unpause」を選んで止めておく
+1. Movie の「Rewind to start」を選ぶ
+1. Movie の「Readonly mode」を解除する
+1. Tools の「Reset Lua VM」を選ぶ
+1. Tools の「Run Lua script」を選ぶ
+1. Gameboy の「Pause/Unpause」を選んで動かす

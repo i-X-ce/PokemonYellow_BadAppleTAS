@@ -17,6 +17,9 @@ main:
     xor a  
     ld [write_cnt], a ; 書き込みカウンタの初期化
 
+    ld hl, $ff40
+    set 4, [hl]
+
     call lcdc_stop
     ld hl, v_start_addr ; VRAMの初期化
     ld b, 18 
@@ -49,26 +52,52 @@ main:
     push bc 
 
     call get_input
+    ld [hli], a
 
     pop bc
     inc b 
     ld a, b 
-    ld [write_cnt], a
+    ; ld [write_cnt], a
     cp 4 
-    jr nc, .writeloop
+    jr c, .writeloop
     pop bc 
     inc c 
     ld a, c
-    ld [tile_cnt + 1], a
+    ; ld [tile_cnt + 1], a
     cp 20 
-    jr nc, .writeloop_x
+    jr c, .writeloop_x
     inc b 
     ld a, b
-    ld [tile_cnt], a
-    cp 18
-    jr nc, .writeloop_y
-    jr .mainloop
+    ; ld [tile_cnt], a
+    cp 9
+    jr c, .writeloop_y
 
+    ld hl, $8000
+    ld de, movie_buffer
+    ld bc, 180  
+.output_vloop
+    push bc 
+    ld b, 4 
+.output_tileloop
+    push bc 
+    ld a, [de]
+    inc de 
+    ld [hli], a
+    ld [hli], a
+    pop bc 
+    dec b 
+    jr nz, .output_tileloop
+    pop bc 
+    dec bc 
+    ld a, c 
+    or b
+    jr nz, .output_vloop
+
+.wait_next_frame ;次の画面更新まで待つ
+    ldh a, [$ff00+$44]
+    and a  
+    jr nz, .wait_next_frame
+    jr .mainloop
 
 ; 入力を取る
 get_input:
