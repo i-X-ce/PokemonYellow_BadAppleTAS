@@ -4,7 +4,8 @@ local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r') -- 画
 local inputmovie_file = io.open(USERPROFILE .. "movie.txt", 'r') -- 画像
 
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
-local movie_frame_cnt = -1 -- 何枚目の画像か
+local movie_frame_cnt = -2 -- 何枚目の画像か
+local sound_frame_cnt = -1 -- 何枚目の音か
 
 if input_file == nil or inputprogram_file == nil then
     print("Error: input file not found")
@@ -52,7 +53,7 @@ end
 
 on_input = function(subframe)
     local frame = movie.currentframe()
-    print("frame: " .. frame  .. ", scene: " .. scene)
+    -- print("frame: " .. frame  .. ", scene: " .. scene)
     if scene == 0 then -- セットアップ
         if memory.readbyte(0x1000) == 1 then -- サブフレーム実行のフラグをチェック
             scene = 1
@@ -73,15 +74,17 @@ on_input = function(subframe)
     end
 
     if scene == 2 then -- グラフィック入力
-        local write_cnt = memory.readbyte(0x1002)
+        local write_mode = memory.readbyte(0x1003)
 
-        local send_data = get_movie(movie_frame_cnt)
-        line_input(send_data)
-
-        movie_frame_cnt = movie_frame_cnt + 1
-        -- if subframe then
-        --     movie_frame_cnt = movie_frame_cnt + 1
-        -- end
+        if write_mode == 0 then
+            local send_data = get_movie(movie_frame_cnt)
+            line_input(send_data)
+            movie_frame_cnt = movie_frame_cnt + 1
+        else 
+            local send_data = get_sound(sound_frame_cnt)
+            line_input(send_data)
+            sound_frame_cnt = sound_frame_cnt + 1
+        end
     end
 
 end
@@ -142,4 +145,12 @@ function get_movie(frame)
         return ""
     end
     return inputmovie_file:read()
+end
+
+-- 音を取得
+function get_sound(frame)
+    if frame < 1 then 
+        return ""
+    end
+    return "Bs"
 end

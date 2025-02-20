@@ -8,6 +8,7 @@ WIN_addr equ $9c00
 scene_addr equ $d000
 write_addr equ $d001 ; 書き込み中のアドレスを保存 2byte
 write_addr_high equ $d002
+write_mode equ $d003 ; 書き込みモード 0:画像, 1:音声
 
 write_line equ 9 ; 1frameに書き込む行数
 
@@ -17,6 +18,10 @@ main:
 
     xor a  
     ldh [$ff00+$4a], a
+    ldh [$ff00+$12], a
+    ldh [$ff00+$17], a
+    ldh [$ff00+$21], a
+    ld [write_mode], a
 
     ld hl, $ff40
     set 4, [hl]
@@ -97,10 +102,17 @@ main:
 
 
 wait_next_frame: ;次の画面更新まで待つ
+    ld a, 1 
+    ld [write_mode], a
 .loop
+    call get_input
+    ldh [$ff00+$1c], a
+    call get_input
+    ldh [$ff00+$30], a
     ldh a, [$ff00+$44]
     and a  
     jr nz, .loop
+    ld [write_mode], a
     ret 
 
 
