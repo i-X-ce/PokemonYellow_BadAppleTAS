@@ -13,19 +13,22 @@ audio = audio.set_channels(1).set_frame_rate(44100)
 
 samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
 
-newRate = 44100
+newRate = 9198
 numSamples = int(len(samples) * newRate / 44100)
 resampledData = scipy.signal.resample(samples, numSamples)
 
-quantrizedData = np.floor(((resampledData + 32768) / 65536) * 15).astype(np.uint8)
+# resampledData *= 16
+minData = np.min(resampledData)
+maxData = max(abs(minData), abs(np.max(resampledData)))
+quantrizedData = np.floor(((resampledData + abs(minData)) / (maxData + abs(minData))) * 16).astype(np.uint8)
 
-wav.write("./music/output.wav", newRate, quantrizedData)
+wav.write("./music/output.wav", newRate, quantrizedData[:8092])
 print(quantrizedData.shape)
 
 musicFile = open("./music/music.txt", "w")
 start = 0
 for i in range(start, start + 8192):
-    musicFile.write(format(quantrizedData[i], 'x') + "\n")
+    musicFile.write(format(min(quantrizedData[i], 16), 'x'))
 
 # fps = 60
 # samplesPerFrame = 274
