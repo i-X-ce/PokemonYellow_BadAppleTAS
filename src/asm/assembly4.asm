@@ -1,3 +1,5 @@
+; 音声入力に対応したバージョン
+
 include "yellow_1.2_rom0.asm"
 
 SECTION "Test",ROM0
@@ -5,11 +7,15 @@ load "ACE", wramx[$d9b2]
 
 BG_addr equ $9800
 WIN_addr equ $9c00
+
+sound_buffer equ $c100 ; サウンドバッファ
+
 scene_addr equ $d000
 write_addr equ $d001 ; 書き込み中のアドレスを保存 2byte
 write_addr_high equ $d002
 write_mode equ $d003 ; 書き込みモード 0:画像, 1:音声
-
+sound_write_cnt equ $d004 ; サウンド書き込みカウンタ
+sound_read_cnt equ $d005 ; サウンド読み込みカウンタ
 write_line equ 9 ; 1frameに書き込む行数
 
 main:
@@ -17,11 +23,23 @@ main:
     ld [scene_addr], a 
 
     xor a  
-    ldh [$ff00+$4a], a
-    ldh [$ff00+$12], a
-    ldh [$ff00+$17], a
-    ldh [$ff00+$21], a
-    ld [write_mode], a
+    ldh [$ff00+$4a], a ; ウィンドウY座標
+    ldh [$ff00+$12], a ; サウンド1エンベローブ
+    ldh [$ff00+$17], a ; サウンド2エンベローブ
+    ldh [$ff00+$21], a ; サウンド4エンベローブ
+    ldh [$ff00+$1b], a ; サウンド3サウンド長
+    ldh [$ff00+$05], a ; タイマーカウンタ
+    ldh [$ff00+$0f], a ; 割り込みフラグ
+    ld [sound_write_cnt], a
+    ld [sound_read_cnt], a
+    ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
+    ldh [$ff00+$06], a ; タイマー調整
+    ld a, $05 
+    ldh [$ff00+$07], a ; タイマー制御
+    ld a, $1c 
+    ldh [$ff00+$1d], a ; サウンド3周波数
+    ld a, $87 
+    ldh [$ff00+$1e], a ; サウンド3周波数
 
     ld hl, $ff40
     set 4, [hl]
@@ -32,6 +50,25 @@ main:
     call lcdc_stop
     call init_tile
     call lcdc_on
+
+    ld a, 1
+    ld [write_mode], a
+    ld hl, sound_buffer
+    ld c, 0 
+.init_sound ; サウンドバッファを初期化
+    ldh a, [$ff00+0]
+    ld b, a  
+    swap b 
+    ldh a, [$ff00+0]
+    xor b
+    ld a, [hli]
+    dec c 
+    jr nz, .init_sound
+
+.wait_first_frame ; 最初のフレームを待つ
+    ldh a, [$ff00+$44]
+    and a  
+    jr nz, .wait_first_frame
 
 .mainloop
     ld hl, BG_addr
@@ -55,7 +92,12 @@ main:
     ld c, 20
 .input_hloop
     push bc 
-    call get_input
+    call step_sound
+    ldh a, [$ff00+0]
+    ld b, a  
+    swap b 
+    ldh a, [$ff00+0]
+    xor b
     ld b, a 
 .input_wait 
     ldh a, [$ff00+$41]
@@ -104,11 +146,29 @@ main:
 wait_next_frame: ;次の画面更新まで待つ
     ld a, 1 
     ld [write_mode], a
+    ld a, [sound_write_cnt]
+    ld l, a 
+    ld h, high(sound_buffer)
 .loop
+    ld a, [sound_read_cnt]
+    cp l
+    jr z, .sound_input_skp ; 読み込みに追いついたらストップ
+    ldh a, [$ff00+0]
+    ld b, a  
+    swap b 
+    ldh a, [$ff00+0]
+    xor b
+    
+    ld [hl], a
+    inc l
+.sound_input_skp
+    call step_sound
     ldh a, [$ff00+$44]
     and a  
     jr nz, .loop
     ld [write_mode], a
+    ld a, l 
+    ld [sound_write_cnt], a
     ret 
 
 
@@ -167,10 +227,46 @@ init_tile_format_table:
 
 
 ; 入力を取る
-get_input:
-    ldh a, [$ff00+0]
-    ld b, a  
-    swap b 
-    ldh a, [$ff00+0]
-    xor b
-    ret  
+; get_input:
+;     ldh a, [$ff00+0]
+;     ld b, a  
+;     swap b 
+;     ldh a, [$ff00+0]
+;     xor b
+;     ret  
+
+
+; サウンドを鳴らす hlを保持
+step_sound:
+    ldh a, [$ff00+$0f]
+    bit 2, a 
+    ret z
+    xor a  
+    ldh [$ff00+$0f], a
+    ld a, [.sound_cnt]
+    dec a 
+    ret nz 
+    ldh [$ff00+$1a], a
+    ld a, $10 
+    ld [.sound_cnt], a
+    ld bc, $1030
+    
+    ld a, [sound_read_cnt]
+    ld e, a 
+    ld d, high(sound_buffer)
+.input_loop 
+    ld a, [de]
+    inc e 
+    ld [$ff00+c], a
+    inc c 
+    dec b 
+    jr nz, .input_loop
+    ld a, e 
+    ld [sound_read_cnt], a
+    ret
+
+.sound_cnt
+    db $10 
+
+end_cmd: ; 終端のコマンド
+    db $fd, $fd, $fd

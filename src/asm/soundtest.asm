@@ -4,67 +4,124 @@ SECTION "Test",ROM0
 load "ACE", wramx[$da00]
 
 main:
-    ; ボリュームは2サンプルごとに変更する
-    ld a, $0a 
-    ld [$0000], a 
-    ld a, $01 
-    ld [$6000], a 
-    ld a, $03 
-    ld [$4000], a 
-    di 
-    ld a, $80  
-    ldh [$ff00+$1a], a
-    ld a, $20 
-    ldh [$ff00+$1c], a
-    xor a  
-    ldh [$ff00+$1b], a
-    ldh [$ff00+$05], a
-    ldh [$ff00+$0f], a
-    ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
-    ldh [$ff00+$06], a
-    ld a, $05 
-    ldh [$ff00+$07], a
-    ld a, $1c ;周波数
-    ldh [$ff00+$1d], a
-    ld a, $87 ;周波数
-    ldh [$ff00+$1e], a
+    ; ボリュームだけで音を鳴らす(やっぱり厳しいか)
+;     ld a, $0a 
+;     ld [$0000], a 
+;     ld a, $01 
+;     ld [$6000], a 
+;     ld a, $03 
+;     ld [$4000], a 
+;     di 
+;     ld a, $80  
+;     ldh [$ff00+$1a], a
+;     ld a, $20 
+;     ldh [$ff00+$1c], a
+;     xor a  
+;     ldh [$ff00+$1b], a
+;     ldh [$ff00+$05], a
+;     ldh [$ff00+$0f], a
+;     ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
+;     ldh [$ff00+$06], a
+;     ld a, $05 
+;     ldh [$ff00+$07], a
+;     ld a, $1c ;周波数
+;     ldh [$ff00+$1d], a
+;     ld a, $87 ;周波数
+;     ldh [$ff00+$1e], a
 
-    ld hl, $a000 - 16
-.wait_bloop
-    ld b, $10
-.wait_loop 
-    ldh a, [$ff00+$0f]
-    bit 2, a
-    jr z, .wait_loop
-    xor a  
-    ldh [$ff00+$0f], a
-    ld a, [hli]
-    ldh [$ff00+$24], a
-    dec b 
-    jr nz, .wait_loop
-    xor a  
-    ldh [$ff00+$1a], a
-    ld bc, $1030
-.input_loop
-    ld a, [hli]
-    ld [$ff00+c], a
-    inc c 
-    dec b 
-    jr nz, .input_loop
-    ld a, h
-    cp $c0
-    jr c, .hskp
-    ld hl, $a000 - 16
-.hskp
-    ld a, $80 
-    ldh [$ff00+$1a], a
-    ldh a, [$ff00+$1e]
-    set 7, a
-    ldh [$ff00+$1e], a
-    jr .wait_bloop
+;     xor a  
+;     ldh [$ff00+$1a], a
+;     ld bc, $1030
+;     ld a, $ff
+; .init_loop
+;     ld [$ff00+c], a
+;     inc c
+;     dec b
+;     jr nz, .init_loop
+;     ld a, $87 
+;     ldh [$ff00+$1a], a
+;     ldh [$ff00+$1e], a
+
+;     ld hl, $a000
+; .wait_loop 
+;     ldh a, [$ff00+$0f]
+;     bit 2, a
+;     jr z, .wait_loop
+;     xor a  
+;     ldh [$ff00+$0f], a
+;     ld a, [hli]
+;     ldh [$ff00+$24], a
+;     inc hl
+;     ld a, h 
+;     cp $c0
+;     jr c, .hskp
+;     ld hl, $a000
+; .hskp 
+;     jr .wait_loop
 
 
-;     ; TIMAと同期させて16byteごと一気に書き換えてみる。マスターボリュームの変更も行う
+
+;     ; ボリュームは2サンプルごとに変更する(できない)
+;     ld a, $0a 
+;     ld [$0000], a 
+;     ld a, $01 
+;     ld [$6000], a 
+;     ld a, $03 
+;     ld [$4000], a 
+;     di 
+;     ld a, $80  
+;     ldh [$ff00+$1a], a
+;     ld a, $20 
+;     ldh [$ff00+$1c], a
+;     xor a  
+;     ldh [$ff00+$1b], a
+;     ldh [$ff00+$05], a
+;     ldh [$ff00+$0f], a
+;     ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
+;     ldh [$ff00+$06], a
+;     ld a, $05 
+;     ldh [$ff00+$07], a
+;     ld a, $1c ;周波数
+;     ldh [$ff00+$1d], a
+;     ld a, $87 ;周波数
+;     ldh [$ff00+$1e], a
+
+;     ld hl, $a000 - 16
+; .wait_bloop
+;     ld b, $10
+; .wait_loop 
+;     ldh a, [$ff00+$0f]
+;     bit 2, a
+;     jr z, .wait_loop
+;     xor a  
+;     ldh [$ff00+$0f], a
+;     ld a, [hli]
+;     ldh [$ff00+$24], a
+;     dec b 
+;     jr nz, .wait_loop
+;     xor a  
+;     ldh [$ff00+$1a], a
+;     ld bc, $1030
+; .input_loop
+;     ld a, [hli]
+;     ld [$ff00+c], a
+;     inc c 
+;     dec b 
+;     jr nz, .input_loop
+;     ld a, h
+;     cp $c0
+;     jr c, .hskp
+;     ld hl, $a000 - 16
+; .hskp
+;     ld a, $80 
+;     ldh [$ff00+$1a], a
+;     ldh a, [$ff00+$1e]
+;     set 7, a
+;     ldh [$ff00+$1e], a
+;     jr .wait_bloop
+
+
+;     ; TIMAと同期させて16byteごと一気に書き換えてみる。マスターボリュームの変更も行う(できない)
 ;     ld a, $0a 
 ;     ld [$0000], a 
 ;     ld a, $01 
@@ -149,60 +206,60 @@ main:
 
 
 
-;     ; TIMAと同期させて16byteごと一気に書き換えてみる。うまくいった！ちゃんと鳴った！
-;     ld a, $0a 
-;     ld [$0000], a 
-;     ld a, $01 
-;     ld [$6000], a 
-;     ld a, $03 
-;     ld [$4000], a 
-;     di 
-;     ld a, $80  
-;     ldh [$ff00+$1a], a
-;     ld a, $20 
-;     ldh [$ff00+$1c], a
-;     xor a  
-;     ldh [$ff00+$1b], a
-;     ldh [$ff00+$05], a
-;     ldh [$ff00+$0f], a
-;     ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
-;     ldh [$ff00+$06], a
-;     ld a, $05 
-;     ldh [$ff00+$07], a
-;     ld a, $1c ;周波数
-;     ldh [$ff00+$1d], a
-;     ld a, $87 ;周波数
-;     ldh [$ff00+$1e], a
+    ; TIMAと同期させて16byteごと一気に書き換えてみる。うまくいった！ちゃんと鳴った！
+    ld a, $0a 
+    ld [$0000], a 
+    ld a, $01 
+    ld [$6000], a 
+    ld a, $03 
+    ld [$4000], a 
+    di 
+    ld a, $80  
+    ldh [$ff00+$1a], a
+    ld a, $20 
+    ldh [$ff00+$1c], a
+    xor a  
+    ldh [$ff00+$1b], a
+    ldh [$ff00+$05], a
+    ldh [$ff00+$0f], a
+    ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
+    ldh [$ff00+$06], a
+    ld a, $05 
+    ldh [$ff00+$07], a
+    ld a, $1c ;周波数
+    ldh [$ff00+$1d], a
+    ld a, $87 ;周波数
+    ldh [$ff00+$1e], a
 
-;     ld hl, $a000
-; .wait_bloop
-;     ld b, $10
-; .wait_loop 
-;     ldh a, [$ff00+$0f]
-;     bit 2, a
-;     jr z, .wait_loop
-;     xor a  
-;     ldh [$ff00+$0f], a
-;     dec b 
-;     jr nz, .wait_loop
-;     ldh [$ff00+$1a], a
-;     ld bc, $1030
-; .input_loop
-;     ld a, [hli]
-;     ld [$ff00+c], a
-;     inc c 
-;     dec b 
-;     jr nz, .input_loop
-;     ld a, h 
-;     and $0f 
-;     or $a0
-;     ld h, a 
-;     ld a, $80 
-;     ldh [$ff00+$1a], a
-;     ldh a, [$ff00+$1e]
-;     set 7, a
-;     ldh [$ff00+$1e], a
-;     jr .wait_bloop
+    ld hl, $a000
+.wait_bloop
+    ld b, $10
+.wait_loop 
+    ldh a, [$ff00+$0f]
+    bit 2, a
+    jr z, .wait_loop
+    xor a  
+    ldh [$ff00+$0f], a
+    dec b 
+    jr nz, .wait_loop
+    ldh [$ff00+$1a], a
+    ld bc, $1030
+.input_loop
+    ld a, [hli]
+    ld [$ff00+c], a
+    inc c 
+    dec b 
+    jr nz, .input_loop
+    ld a, h 
+    and $0f 
+    or $a0
+    ld h, a 
+    ld a, $80 
+    ldh [$ff00+$1a], a
+    ldh a, [$ff00+$1e]
+    set 7, a
+    ldh [$ff00+$1e], a
+    jr .wait_bloop
 
 
 

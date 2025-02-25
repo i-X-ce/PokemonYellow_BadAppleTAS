@@ -9,7 +9,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
 # 量子化サイズ
-quantizeSize = 120
+quantizeSize = 16
 # 音声サイズ
 audioSize = 8192
 # 新しいサンプリングレート
@@ -56,8 +56,8 @@ maxData = max(abs(minData), abs(np.max(resampledData)))
 quantrizedData = np.floor(((resampledData - minData) / (maxData - minData)) * quantizeSize).astype(np.uint8)
 
 # 最も近いボリュームに調整
-for i in range(len(quantrizedData)):
-    quantrizedData[i] = closestVolume(quantrizedData[i]).getVolume()
+# for i in range(len(quantrizedData)):
+#     quantrizedData[i] = closestVolume(quantrizedData[i]).getVolume()
 
 wav.write("./music/output.wav", rate, quantrizedData[:audioSize])
 print(quantrizedData.shape)
@@ -65,24 +65,24 @@ print(quantrizedData.shape)
 musicFile = open("./music/music.txt", "w")
 
 # volumeを分けて16進数に変換
-def divisionVolume(volume):
-    V = volumeMap[volume]
-    if V == None:
-        return "0", "0"
-    return format(V.volume, 'x'),  format(V.mastarVolume, 'x')
+# def divisionVolume(volume):
+#     V = volumeMap[volume]
+#     if V == None:
+#         return "0", "0"
+#     return format(V.volume, 'x'),  format(V.mastarVolume, 'x')
 
 
-for i in range(audioSize // 32):
-    volumes = ""
-    masterVolumes = ""
-    for j in range(16):
-        V1 = volumeMap[quantrizedData[i * 16 + j * 2]]
-        V2 = volumeMap[quantrizedData[i * 16 + j * 2 + 1]]
-        sum = V1.getVolume() + V2.getVolume()
-        m = round(sum / (V1.volume + V2.volume))
-        volumes += V1.volumeStr() + V2.volumeStr()
-        masterVolumes += format(m - 1, 'x') + format(m - 1, 'x')
-    musicFile.write(volumes + masterVolumes + "\n")
+# for i in range(audioSize // 32):
+#     volumes = ""
+#     masterVolumes = ""
+#     for j in range(16):
+#         V1 = volumeMap[quantrizedData[i * 16 + j * 2]]
+#         V2 = volumeMap[quantrizedData[i * 16 + j * 2 + 1]]
+#         sum = V1.getVolume() + V2.getVolume()
+#         m = round(sum / (V1.volume + V2.volume))
+#         volumes += V1.volumeStr() + V2.volumeStr()
+#         masterVolumes += format(m - 1, 'x') + format(m - 1, 'x')
+#     musicFile.write(volumes + masterVolumes + "\n")
 
 
 
@@ -104,12 +104,12 @@ for i in range(audioSize // 32):
 # for i in range(start, start + 8192):
 #     musicFile.write(format(min(quantrizedData[i], 16), 'x'))
 
-# for i in range(0, 512):
-#     s = ""
-#     for j in range(1, 16):
-#         s += format(min(quantrizedData[i * 16 + j], 16), 'x')
-#     s += format(min(quantrizedData[i * 16], 16), 'x')
-#     musicFile.write(s)
+for i in range(0, audioSize // 32):
+    s = ""
+    for j in range(1, 32):
+        s += format(min(quantrizedData[i * 16 + j], 16), 'x')
+    s += format(min(quantrizedData[i * 16], 16), 'x')
+    musicFile.write(s)
 
 
     
