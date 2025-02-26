@@ -173,8 +173,9 @@ wait_next_frame: ;次の画面更新まで待つ
 .sound_input_skp
     call step_sound
     ldh a, [$ff00+$44]
-    and a  
+    cp $98
     jr nz, .loop
+    xor a  
     ld [write_mode], a
     ld a, l 
     ld [sound_write_cnt], a
