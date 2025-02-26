@@ -2,6 +2,7 @@ local USERPROFILE = os.getenv("USERPROFILE"):gsub("\\", "/") .. "/Desktop/Pokemo
 local input_file = io.open(USERPROFILE .. "input.txt", 'r') -- セットアップまでのボタン操作
 local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r') -- 画像入力に使うプログラム
 local inputmovie_file = io.open(USERPROFILE .. "movie.txt", 'r') -- 画像
+local inputsound_file = io.open(USERPROFILE .. "sound.txt", 'r') -- 音楽
 
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
 local inputprogram_frame_cnt = 1 -- プログラムの何バイト目か
@@ -163,5 +164,5 @@ function get_sound(frame)
     if frame < 1 then 
         return ""
     end
-    return "Bs"
+    return inputsound_file:read()
 end

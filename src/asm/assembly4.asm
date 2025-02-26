@@ -8,6 +8,8 @@ load "ACE", wramx[$d9b2]
 
 BG_addr equ $9800
 WIN_addr equ $9c00
+soundfreq_upper equ $07
+soundfreq_lower equ $1c
 
 sound_buffer equ $c100 ; サウンドバッファ
 
@@ -37,9 +39,9 @@ main:
     ldh [$ff00+$06], a ; タイマー調整
     ld a, $05 
     ldh [$ff00+$07], a ; タイマー制御
-    ld a, $1c 
+    ld a, soundfreq_lower 
     ldh [$ff00+$1d], a ; サウンド3周波数
-    ld a, $87 
+    ld a, $80 | soundfreq_upper
     ldh [$ff00+$1e], a ; サウンド3周波数
 
     ld hl, $ff40
@@ -271,6 +273,9 @@ step_sound:
     jr nz, .input_loop
     ld a, e 
     ld [sound_read_cnt], a
+    ld a, $80 | soundfreq_upper
+    ldh [$ff00+$1a], a
+    ldh [$ff00+$1e], a
     ret
 
 .sound_cnt
