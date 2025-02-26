@@ -4,7 +4,8 @@ local inputprogram_file = io.open(USERPROFILE .. "inputprogram.txt", 'r') -- 画
 local inputmovie_file = io.open(USERPROFILE .. "movie.txt", 'r') -- 画像
 
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
-local movie_frame_cnt = -2 -- 何枚目の画像か
+local inputprogram_frame_cnt = 1 -- プログラムの何バイト目か
+local movie_frame_cnt = -1 -- 何枚目の画像か
 local sound_frame_cnt = -1 -- 何枚目の音か
 
 if input_file == nil or inputprogram_file == nil then
@@ -41,10 +42,10 @@ for line in input_file:lines() do
     table.insert(input_data, line)
 end
 
-local inputprogram_data = {}
-for line in inputprogram_file:lines() do
-    table.insert(inputprogram_data, line)
-end
+-- local inputprogram_data = {}
+-- for line in inputprogram_file:lines() do
+--     table.insert(inputprogram_data, line)
+-- end
 
 -- local movie_data = {}
 -- for line in inputmovie_file:lines() do
@@ -67,10 +68,13 @@ on_input = function(subframe)
             scene = 2
         end
 
-        local inputprogram_startaddr = 0x19B2
-        local inputprogram_cnt = memory.readbyte(0x1001) + 1
-        local byte = input2byte(inputprogram_data[inputprogram_cnt])
-        line_input(inputprogram_data[inputprogram_cnt])
+        local send_data = get_inputprogram(inputprogram_frame_cnt)
+        line_input(send_data)
+        inputprogram_frame_cnt = inputprogram_frame_cnt + 1
+        -- local inputprogram_startaddr = 0x19B2
+        -- local inputprogram_cnt = memory.readbyte(0x1001) + 1
+        -- local byte = input2byte(inputprogram_data[inputprogram_cnt])
+        -- line_input(inputprogram_data[inputprogram_cnt])
     end
 
     if scene == 2 then -- グラフィック入力
@@ -137,6 +141,13 @@ function byte2input(byte)
         end
     end
     return input
+end
+
+function get_inputprogram(frame)
+    if frame < 1 then 
+        return ""
+    end
+    return inputprogram_file:read()
 end
 
 -- 画像を取得

@@ -1,4 +1,5 @@
 ; 音声入力に対応したバージョン
+; TASproject/inputprogram.txtにTAS変換(半入力Bボタン反転ABSs)して書き込む
 
 include "yellow_1.2_rom0.asm"
 
@@ -61,7 +62,8 @@ main:
     swap b 
     ldh a, [$ff00+0]
     xor b
-    ld a, [hli]
+    ld [hl], a
+    inc l
     dec c 
     jr nz, .init_sound
 
@@ -69,6 +71,9 @@ main:
     ldh a, [$ff00+$44]
     and a  
     jr nz, .wait_first_frame
+
+    xor a  
+    ld [write_mode], a
 
 .mainloop
     ld hl, BG_addr
@@ -92,19 +97,22 @@ main:
     ld c, 20
 .input_hloop
     push bc 
-    call step_sound
     ldh a, [$ff00+0]
     ld b, a  
     swap b 
     ldh a, [$ff00+0]
     xor b
-    ld b, a 
+    ld b, a  
 .input_wait 
+    push bc 
+    call step_sound
+    pop bc
+    ld [hl], b
     ldh a, [$ff00+$41]
+    ld [hl], b
     and $03 
     cp 3
     jr nc, .input_wait
-    ld [hl], b
     inc hl 
     pop bc
     dec c 
@@ -117,7 +125,7 @@ main:
     ; 書き込みが終了したか判定
     ld a, l 
     cp $40
-    jr nz, .write_save
+    jr c, .write_save
     ld a, h
     cp $9a
     jr z, .write_switch
@@ -158,7 +166,6 @@ wait_next_frame: ;次の画面更新まで待つ
     swap b 
     ldh a, [$ff00+0]
     xor b
-    
     ld [hl], a
     inc l
 .sound_input_skp
@@ -245,6 +252,7 @@ step_sound:
     ldh [$ff00+$0f], a
     ld a, [.sound_cnt]
     dec a 
+    ld [.sound_cnt], a
     ret nz 
     ldh [$ff00+$1a], a
     ld a, $10 
