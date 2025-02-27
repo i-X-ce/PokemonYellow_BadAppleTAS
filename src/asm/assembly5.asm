@@ -19,6 +19,7 @@ write_addr_high equ $d002
 write_mode equ $d003 ; 書き込みモード 0:画像, 1:音声
 sound_write_cnt equ $d004 ; サウンド書き込みカウンタ
 sound_read_cnt equ $d005 ; サウンド読み込みカウンタ
+lag_frame equ $d006 ; frameの遅延
 write_line equ 9 ; 1frameに書き込む行数
 
 main:
@@ -35,6 +36,7 @@ main:
     ldh [$ff00+$0f], a ; 割り込みフラグ
     ld [sound_write_cnt], a
     ld [sound_read_cnt], a
+    ld [lag_frame], a
     ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
     ldh [$ff00+$06], a ; タイマー調整
     ld a, $05 
@@ -123,9 +125,21 @@ main:
     and $03
     cp $03 
     jr nc, .input_wait
+    ldh a, [$ff00+$44]
+    cp $98
+    jr nz, .lagskp
+    ld a, 1 
+    ld [lag_frame], a  
+.lagskp
+    jr .mainloop
 
 .input_end
+    ld a, [lag_frame]
+    and a  
+    call z, wait_next_frame
     call wait_next_frame
+    xor a 
+    ld [lag_frame], a
     ldh a, [$ff00+$40]
     xor $20
     ldh [$ff00+$40], a
@@ -151,7 +165,7 @@ wait_next_frame: ;次の画面更新まで待つ
 .sound_input_skp
     call step_sound
     ldh a, [$ff00+$44]
-    cp $98
+    and a  
     jr nz, .loop
     xor a  
     ld [write_mode], a

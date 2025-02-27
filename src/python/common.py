@@ -10,5 +10,3 @@ def hex2input(hex, len=2):
                 s += "."
         s += "\n"
     return s
-
-print(hex2input(0x13))

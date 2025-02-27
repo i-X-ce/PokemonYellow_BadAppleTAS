@@ -9,17 +9,21 @@ from common import *
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
+# デバッグ用
+debug = False
+
 quality = 2 # 画素(1タイルにつき何分割するか)
 lenY = 18 # タイルの縦
 lenX = 20 # タイルの横
 skipFrame = 2 # 何フレームごとに処理するか
 
-tileFile = open("movie.txt", "w")
+tileFile = open("movie2.txt", "w") if debug else open("movie.txt", "w")
 cap = cv2.VideoCapture("../movies/badapple.mp4")
 
 # 2フレーム分のデータを保存(0x9800, 0x9c00)
-prevFrame = [[[0] * 20] * 18 for i in range(2)]
+prevFrame = [[[0xff for _ in range(20)] for _ in range(18)] for _ in range(2)]
 costCnt = 0
+if debug: print("Debug mode")
 print(f"{math.floor(cap.get(cv2.CAP_PROP_FRAME_COUNT) // skipFrame):,} frames in total.")
 costList = []
 
@@ -51,27 +55,36 @@ while cap.isOpened():
     levels = np.array([0, 85, 170, 255], dtype=np.uint8)  # 4つのグレースケールの値
     image_4color = levels[quantized]  # 量子化した画像を適用
 
-    writeAddr = 0x9800 if frameCnt % (skipFrame * 2) == 0 else 0x9c00
+    writeAddrInit = 0x9800 if frameCnt % (skipFrame * 2) == 0 else 0x9c00
     prevIndex = 0 if frameCnt % (skipFrame * 2) == 0 else 1
     preCost = costCnt
 
     if quality == 2:
-        tileDict = { 0: 0, 85: 1, 170: 2, 255: 3 }
-        for i in range(0, lenY):
-            for j in range(0, lenX):
+        tileDict = { 0: 3, 85: 2, 170: 1, 255: 0 }
+        for i in range(lenY):
+            for j in range(lenX):
                 byte = 0
-                for k in range(0, 2):
-                    for l in range(0, 2):
-                        byte = byte * 4 + tileDict[image_4color[i * 2 + k][j * 2 + l][0]]
+                for k in range(2):
+                    for l in range(2):
+                        byte = byte * 4 + tileDict[image_4color[i * 2 + 1 - k][j * 2 + l][0]]
                 if byte != prevFrame[prevIndex][i][j]:
-                    writeAddr += i * 32 + j
-                    tileFile.write(hex2input(writeAddr & 0xff, 2))
-                    tileFile.write(hex2input((writeAddr >> 8) & 0xff, 2))
-                    tileFile.write(hex2input(byte, 2))
+                    writeAddr = writeAddrInit + i * 32 + j
+                    if debug:
+                        tileFile.write(f"{writeAddr:04x}, {byte:02x}\n")
+                    else:
+                        tileFile.write(hex2input((writeAddr >> 8) & 0xff)) # 上桁
+                        tileFile.write(hex2input(writeAddr & 0xff)) # 下桁
+                        tileFile.write(hex2input(byte))
                     prevFrame[prevIndex][i][j] = byte
                     costCnt += 3
     costCnt += 1
-    tileFile.write(hex2input(0xff, 2))
+
+    # 画面切り替えコマンド
+    switchCmd = 0x00 if frameCnt % (skipFrame * 2) == 0 else 0x20
+    if debug:
+        tileFile.write(f"{switchCmd:02x}\n")
+    else:
+        tileFile.write(hex2input(switchCmd))
 
     costList.append(costCnt - preCost)
 
@@ -81,6 +94,12 @@ while cap.isOpened():
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
+
+# 終了コマンド
+if debug:
+    tileFile.write(f"{0xff:02x}\n")
+else:
+    tileFile.write(hex2input(0xff))
 
 cap.release()
 cv2.destroyAllWindows()
