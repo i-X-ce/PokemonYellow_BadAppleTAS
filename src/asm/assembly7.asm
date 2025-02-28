@@ -1,6 +1,5 @@
 ; 圧縮した画像データをバッファに格納するバージョン
 ; TASproject/inputprogram.txtにTAS変換(半入力Bボタン反転ABSs)して書き込む
-; 没になったコード
 
 include "yellow_1.2_rom0.asm"
 
@@ -13,7 +12,8 @@ soundfreq_upper equ $07
 soundfreq_lower equ $1c
 
 sound_buffer equ $c100 ; サウンドバッファ
-image_buffer equ $c300 ; 画像バッファ
+image_buffer equ $a000 ; 画像バッファ
+image_buffer_size equ $2000 ; 画像バッファのサイズ
 
 scene_addr equ $d000
 ; write_addr equ $d001 ; 書き込み中のアドレスを保存 2byte
@@ -26,9 +26,10 @@ image_write_addr_high equ $d007
 image_read_addr equ $d008 ; 画像読み込みアドレス
 image_read_addr_high equ $d009
 frame_cnt equ $d00a ; フレームカウンタ
+next_window equ $d00b ; 次のウィンドウのフラグ
 
 image_data_size_ipf equ 200 ; 1frameに書き込むデータの数
-input_ly equ 154 / 2 ; 入力に移行するライン
+input_ly equ 80 ; 入力に移行するライン
 
 
 main:
@@ -55,6 +56,14 @@ main:
     ld a, $80 | soundfreq_upper
     ldh [$ff00+$1e], a ; サウンド3周波数
 
+    ; SRAMを開く
+    ld a, $0a
+    ld [$0000], a
+    ld a, $01 
+    ld [$6000], a 
+    dec a 
+    ld [$4000], a 
+
     ld hl, $ff40
     set 4, [hl]
 
@@ -68,7 +77,7 @@ main:
     xor a  
     ld [write_mode], a
     ld hl, image_buffer
-    ld de, $400
+    ld de, image_buffer_size - $100
 .init_image ; 画像バッファに読み込み
     ldh a, [$ff00+0]
     ld b, a  
@@ -121,69 +130,76 @@ main:
     or b
     jr nz, .init_vram
 
+    xor a  
+    ld [write_mode], a
+
+
+
+.mainloop
 .wait_first_frame ; 最初のフレームを待つ
+    call step_sound
     ldh a, [$ff00+$44]
     and a  
     jr nz, .wait_first_frame
 
-.mainloop
     ld hl, frame_cnt
     inc [hl]
 
-    ; 画像の書き込み
+
+    ; 画像をバッファから読み込み
     ld hl, image_read_addr
     ld a, [hli]
     ld h, [hl]
     ld l, a
+.image_read_loop
+    ld a, h 
+    cp high(image_buffer + image_buffer_size)
+    jr c, .image_read_over_skp ; バッファサイズを超えてたら初期位置に戻す
+    ld hl, image_buffer
+.image_read_over_skp 
     ld a, [hli]
-    cp $21
-    jr c, .end_write_image ; 00-20までが画面切り替えコマンド
+    cp $21 
+    jr c, .image_read_end ; 00-20までが画面切り替えコマンド
     ld d, a 
     ld a, [hli]
     ld e, a
     ld a, [hli]
-    ld b, a  
+    ld b, a
     push hl 
     ld h, d 
-    ld l, e 
-    
+    ld l, e
 
-.write_wait 
+.image_read_write_wait 
     push bc 
     call step_sound
     pop bc
-    ld [hl], b 
+    ld [hl], b
     ldh a, [$ff00+$41]
-    ld [hl], b 
+    ld [hl], b
     and $03
-    cp $03
-    jr nc, .write_wait
-    pop hl 
+    cp $03 
+    jr nc, .image_read_write_wait
+    pop hl
     ldh a, [$ff00+$44]
-    cp input_ly - 2
-    jr nc, .end_write_image2 ; 処理が長すぎる場合は強制終了 次のフレームまで見送る
+    cp input_ly - 2 
+    jr c, .image_read_loop
+    jr .image_read_save_addr
 
-.end_write_image ; 画面切り替えコマンド
+.image_read_end
     dec hl 
-    ld b, a 
+    ld b, a  
     ld a, [frame_cnt]
-    bit 0, a
-    jr nz, .end_write_image2 ; 偶数フレームのみ切り替えが起こるようにする
+    bit 0, a 
+    jr nz, .image_read_save_addr ; 奇数フレームのみ切り替えが起こる
     inc hl 
-    ldh a, [$ff00+$40]
-    and $df 
-    and a, b
-    ldh [$ff00+$40], a
-.end_write_image2 ; 途中保存
-    ld a, h 
-    cp high(image_buffer + $800) ; コマンドごとに上限の設定がされる
-    jr c, .read_over_skp
-    ld a, high(image_buffer)
-    ld l, $00
-.read_over_skp
-    ld [image_read_addr], a 
+    ld a, b 
+    ld [next_window], a
+.image_read_save_addr
+    ld a, l 
+    ld [image_read_addr], a
     ld a, h 
     ld [image_read_addr_high], a
+    
 
 
     ; 画像をバッファに入力
@@ -195,47 +211,50 @@ main:
     ld h, [hl]
     ld l, a
 .image_input_loop
-    ldh a, [$ff00+0]
-    ld b, a  
-    swap b 
-    ldh a, [$ff00+0]
-    xor b
-    cp $21 
-    jr c, .image_input_end
-    ld [hli], a
-    ldh a, [$ff00+0]
-    ld b, a  
-    swap b 
-    ldh a, [$ff00+0]
-    xor b
-    ld [hli], a
-    ldh a, [$ff00+0]
-    ld b, a  
-    swap b 
-    ldh a, [$ff00+0]
-    xor b
-    ld [hli], a
-
-.image_input_end ; 終了判定
-    call step_sound
     ld a, h 
-    cp high(image_buffer + $800)
+    cp high(image_buffer + image_buffer_size)
     jr c, .image_input_digit_skp ; バッファサイズを超えてたら初期位置に戻す
-    ld a, high(image_buffer)
-    ld l, $00
+    ld hl, image_buffer
 .image_input_digit_skp
     ld a, [image_read_addr_high]
     cp h  
     jr z, .image_input_end2 ; 追いつきそうだったら終了 256の範囲内で読み込みに追いつかれる可能性があるので注意
+    ldh a, [$ff00+0]
+    ld b, a  
+    swap b 
+    ldh a, [$ff00+0]
+    xor b
+    ld [hli], a
+    cp $21 
+    jr c, .image_input_end
+    ldh a, [$ff00+0]
+    ld b, a  
+    swap b 
+    ldh a, [$ff00+0]
+    xor b
+    ld [hli], a
+    ldh a, [$ff00+0]
+    ld b, a  
+    swap b 
+    ldh a, [$ff00+0]
+    xor b
+    ld [hli], a
+.image_input_end ; 終了判定
+    call step_sound
     ldh a, [$ff00+$44]
     cp input_ly
-    jr nc, .image_input_loop
+    jr c, .image_input_loop
 .image_input_end2 ; 本当に終了する
     ld a, l 
     ld [image_write_addr], a
     ld a, h 
     ld [image_write_addr_high], a 
-    jr .image_input_loop
+
+    ; 速すぎる場合1ライン待つ
+; .wait_one_line
+;     ldh a, [$ff00+$44]
+;     cp $97
+;     jr z, .wait_one_line
 
     ; サウンドの書き込み
 .sound_input
@@ -258,10 +277,18 @@ main:
 .sound_input_skp
     call step_sound
     ldh a, [$ff00+$44]
-    and a  
-    jr nz, .sound_input_loop
+    cp $97 
+    jr c, .sound_input_loop
     ld a, l
     ld [sound_write_cnt], a
+
+    ; ウィンドウの切り替え
+    ld a, [next_window]
+    ld b, a 
+    ldh a, [$ff00+$40]
+    and $df 
+    or b  
+    ldh [$ff00+$40], a
     jp .mainloop
 
 

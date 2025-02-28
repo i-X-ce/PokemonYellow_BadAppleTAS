@@ -3,8 +3,10 @@ import numpy as np
 import os
 import math
 from common import *
+import itertools
 
 # 圧縮する
+# 色反転もする
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
@@ -57,36 +59,55 @@ while cap.isOpened():
 
     writeAddrInit = 0x9800 if frameCnt % (skipFrame * 2) == 0 else 0x9c00
     prevIndex = 0 if frameCnt % (skipFrame * 2) == 0 else 1
-    preCost = costCnt
 
     if quality == 2:
         tileDict = { 0: 3, 85: 2, 170: 1, 255: 0 }
+        data = "" # 書き込むデータ
+        rdata = "" # 色反転したデータ
+        cost = 0 # 1フレームのコスト
+        rcost = 0 # 1フレームの色反転コスト
         for i in range(lenY):
             for j in range(lenX):
                 byte = 0
                 for k in range(2):
                     for l in range(2):
                         byte = byte * 4 + tileDict[image_4color[i * 2 + 1 - k][j * 2 + l][0]]
+                writeAddr = writeAddrInit + i * 32 + j
                 if byte != prevFrame[prevIndex][i][j]:
-                    writeAddr = writeAddrInit + i * 32 + j
                     if debug:
-                        tileFile.write(f"{writeAddr:04x}{byte:02x}\n")
+                        data += f"{writeAddr:04x}{byte:02x}\n"
                     else:
-                        tileFile.write(hex2input((writeAddr >> 8) & 0xff)) # 上桁
-                        tileFile.write(hex2input(writeAddr & 0xff)) # 下桁
-                        tileFile.write(hex2input(byte))
-                    prevFrame[prevIndex][i][j] = byte
-                    costCnt += 3
-    costCnt += 1
+                        data += hex2input((writeAddr >> 8) & 0xff)
+                        data += hex2input(writeAddr & 0xff)
+                        data += hex2input(byte)
+                    cost += 3
+                if byte ^ 0xff != prevFrame[prevIndex][i][j]:
+                    if debug: 
+                        rdata += f"{writeAddr:04x}{byte:02x}\n"
+                    else:
+                        rdata += hex2input((writeAddr >> 8) & 0xff)
+                        rdata += hex2input(writeAddr & 0xff)
+                        rdata += hex2input(byte)
+                    rcost += 3
+                prevFrame[prevIndex][i][j] = byte
+        
+        reverse = cost > rcost
+        # 画面切り替えコマンド
+        switchCmd = 0x00 if frameCnt % (skipFrame * 2) == 0 else 0x20
+        switchCmd |= 0x01 if reverse else 0x00
+        if reverse: 
+            tileFile.write(rdata)
+        else:
+            tileFile.write(data)
 
-    # 画面切り替えコマンド
-    switchCmd = 0x00 if frameCnt % (skipFrame * 2) == 0 else 0x20
-    if debug:
-        tileFile.write(f"{switchCmd:02x}\n")
-    else:
-        tileFile.write(hex2input(switchCmd))
+        if debug:
+            tileFile.write(f"-{'r' if reverse else ''} {abs(cost - rcost)} {switchCmd:02x}\n")
+        else:
+            tileFile.write(hex2input(switchCmd))
 
-    costList.append(costCnt - preCost)
+        totalCost = min(cost, rcost) + 1
+        costCnt += totalCost
+        costList.append(totalCost)
 
     # 表示のために画像をリサイズ・ピクセルをはっきり表示
     image_4color = cv2.resize(image_4color, (lenX * 25, lenY * 25), interpolation=cv2.INTER_NEAREST)
