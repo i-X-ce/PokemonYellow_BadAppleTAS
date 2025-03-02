@@ -54,6 +54,7 @@ D2EF~
 | FF41     | 1-0 | モードフラグ(0=H-Blank,1=V-Blank,2=OAM-RAM,3=ドライバ(w 不可)) | r/w |
 | FF42     |     | スクロール Y 座標                                              | r/w |
 | FF44     |     | LY                                                             | r/w |
+| FF47     |     | パレット                                                       | r/w |
 | FF4A     |     | WINY 座標                                                      | r/w |
 
 ### マスターボリューム

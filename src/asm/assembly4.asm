@@ -8,8 +8,8 @@ load "ACE", wramx[$d9b2]
 
 BG_addr equ $9800
 WIN_addr equ $9c00
-soundfreq_upper equ $07
-soundfreq_lower equ $1c
+soundfreq equ $6fa
+interruptfreq equ $bf
 
 sound_buffer equ $c100 ; サウンドバッファ
 
@@ -35,13 +35,13 @@ main:
     ldh [$ff00+$0f], a ; 割り込みフラグ
     ld [sound_write_cnt], a
     ld [sound_read_cnt], a
-    ld a, $c7 ; 262144 / 57 Hz (2lineに一回)
+    ld a, interruptfreq ; 262144 / 57 Hz (2lineに一回)
     ldh [$ff00+$06], a ; タイマー調整
     ld a, $05 
     ldh [$ff00+$07], a ; タイマー制御
-    ld a, soundfreq_lower 
+    ld a, low(soundfreq)
     ldh [$ff00+$1d], a ; サウンド3周波数
-    ld a, $80 | soundfreq_upper
+    ld a, $80 | high(soundfreq)
     ldh [$ff00+$1e], a ; サウンド3周波数
 
     ld hl, $ff40
@@ -69,11 +69,6 @@ main:
     dec c 
     jr nz, .init_sound
 
-.wait_first_frame ; 最初のフレームを待つ
-    ldh a, [$ff00+$44]
-    and a  
-    jr nz, .wait_first_frame
-
     xor a  
     ld [write_mode], a
 
@@ -94,6 +89,12 @@ main:
     ld h, a
 
 .input_start
+    .wait_first_frame ; 最初のフレームを待つ
+    call step_sound
+    ldh a, [$ff00+$44]
+    and a  
+    jr nz, .wait_first_frame
+
     ld b, write_line
     .input_vloop
     ld c, 20
@@ -106,15 +107,13 @@ main:
     xor b
     ld b, a  
 .input_wait 
-    push bc 
-    call step_sound
-    pop bc
     ld [hl], b
     ldh a, [$ff00+$41]
     ld [hl], b
     and $03 
     cp 3
     jr nc, .input_wait
+    call step_sound
     inc hl 
     pop bc
     dec c 
@@ -173,8 +172,8 @@ wait_next_frame: ;次の画面更新まで待つ
 .sound_input_skp
     call step_sound
     ldh a, [$ff00+$44]
-    cp $98
-    jr nz, .loop
+    cp $97
+    jr c, .loop
     xor a  
     ld [write_mode], a
     ld a, l 
@@ -274,7 +273,7 @@ step_sound:
     jr nz, .input_loop
     ld a, e 
     ld [sound_read_cnt], a
-    ld a, $80 | soundfreq_upper
+    ld a, $80 | high(soundfreq)
     ldh [$ff00+$1a], a
     ldh [$ff00+$1e], a
     ret

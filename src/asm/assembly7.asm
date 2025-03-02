@@ -77,7 +77,7 @@ main:
     xor a  
     ld [write_mode], a
     ld hl, image_buffer
-    ld de, image_buffer_size - $100
+    ld de, image_buffer_size - $200
 .init_image ; 画像バッファに読み込み
     ldh a, [$ff00+0]
     ld b, a  
@@ -115,6 +115,9 @@ main:
     dec c 
     jr nz, .init_sound
 
+    xor a  
+    ld [write_mode], a
+
     ld hl, BG_addr
     ld bc, $800
 .init_vram ; VRAMを初期化
@@ -129,10 +132,6 @@ main:
     ld a, c 
     or b
     jr nz, .init_vram
-
-    xor a  
-    ld [write_mode], a
-
 
 
 .mainloop
@@ -170,15 +169,13 @@ main:
     ld l, e
 
 .image_read_write_wait 
-    push bc 
-    call step_sound
-    pop bc
     ld [hl], b
     ldh a, [$ff00+$41]
     ld [hl], b
     and $03
     cp $03 
     jr nc, .image_read_write_wait
+    call step_sound
     pop hl
     ldh a, [$ff00+$44]
     cp input_ly - 2 

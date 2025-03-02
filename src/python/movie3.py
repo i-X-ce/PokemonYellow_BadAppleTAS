@@ -12,14 +12,14 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
 # デバッグ用
-debug = True
+debug = False
 
 quality = 2 # 画素(1タイルにつき何分割するか)
 lenY = 18 # タイルの縦
 lenX = 20 # タイルの横
 skipFrame = 2 # 何フレームごとに処理するか
 
-tileFile = open("movie2.txt", "w") if debug else open("movie.txt", "w")
+tileFile = open(f"movie3.txt", "w") if debug else open("movie3.txt", "w")
 cap = cv2.VideoCapture("../movies/badapple.mp4")
 
 # 2フレーム分のデータを保存(0x9800, 0x9c00)
@@ -92,6 +92,11 @@ while cap.isOpened():
                 prevFrame[prevIndex][i][j] = byte
         
         reverse = cost > rcost
+        if reverse:
+            for i in range(lenY):
+                for j in range(lenX):
+                    prevFrame[prevIndex][i][j] = 0xff ^ prevFrame[prevIndex][i][j]
+        
         # 画面切り替えコマンド
         switchCmd = 0x00 if frameCnt % (skipFrame * 2) == 0 else 0x20
         switchCmd |= 0x01 if reverse else 0x00
@@ -100,12 +105,13 @@ while cap.isOpened():
         else:
             tileFile.write(data)
 
+        totalCost = min(cost, rcost) + 1
+
         if debug:
-            tileFile.write(f"-{'r' if reverse else ''} {abs(cost - rcost)} {switchCmd:02x}\n")
+            tileFile.write(f"-{'r' if reverse else 'n'} cost:{totalCost} diff:{abs(cost - rcost)} cmd:{switchCmd:02x}\n")
         else:
             tileFile.write(hex2input(switchCmd))
 
-        totalCost = min(cost, rcost) + 1
         costCnt += totalCost
         costList.append(totalCost)
 

@@ -5,6 +5,7 @@ import os
 import scipy
 import scipy.io.wavfile as wav
 from common import *
+import math
 
 # μ-law 量子化関数（16レベル）
 def mu_law_encoding(audio, mu=15):
@@ -19,10 +20,18 @@ def add_dithering(audio, noise_level=0.01):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
+# 理想のサンプリング周波数
+rate = 8000
 # 量子化サイズ
 quantizeSize = 16
+
+sfq = round((65536 * 32) / rate)
+ifq = sfq // 4
 # 新しいサンプリングレート
-rate = 9198
+rate = round((65536 * 32) / sfq)
+
+print(f"FF1D,1E: {-sfq & 0x7ff:03x}, FF06: {-ifq & 0xff:02x} rate: {rate}Hz")
+
 
 
 # 音声の読み込み

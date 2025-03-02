@@ -6,7 +6,7 @@ local inputsound_file = io.open(USERPROFILE .. "sound.txt", 'r') -- 音楽
 
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
 local inputprogram_frame_cnt = 1 -- プログラムの何バイト目か
-local movie_frame_cnt = 1 -- 何枚目の画像か
+local movie_frame_cnt = -2 -- 何枚目の画像か
 local sound_frame_cnt = -1 -- 何枚目の音か
 
 if input_file == nil or inputprogram_file == nil then

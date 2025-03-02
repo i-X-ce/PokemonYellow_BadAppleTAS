@@ -1,4 +1,4 @@
-; 音声入力に対応したバージョン
+; 音声入力に対応したバージョン frameの遅延を追加？
 ; TASproject/inputprogram.txtにTAS変換(半入力Bボタン反転ABSs)して書き込む
 
 include "yellow_1.2_rom0.asm"
@@ -116,15 +116,13 @@ main:
     xor b
     ld b, a 
 .input_wait
-    push bc 
-    call step_sound
-    pop bc
     ld [hl], b 
     ldh a, [$ff00+$41]
     ld [hl], b
     and $03
     cp $03 
     jr nc, .input_wait
+    call step_sound
     ldh a, [$ff00+$44]
     cp $98
     jr nz, .lagskp
