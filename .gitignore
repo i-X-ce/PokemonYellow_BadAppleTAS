@@ -1,6 +1,8 @@
 .venv/
 src/ROM/
 src/movies/badapple.mp4
+src/movies/badapple_run.mp4
+src/movies/badapple_run.avi
 src/python/music/
 src/lua/
 !src/lua/run.lua

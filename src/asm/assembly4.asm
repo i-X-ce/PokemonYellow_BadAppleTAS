@@ -370,8 +370,10 @@ ending:
     db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $F8, $F8, $F8, $F8, $64, $03, $E7, $03, 
     db $E7, $03, $E7, $03, $E7, $03, $E7,
 .pokemon_data_end
+
 .pokemon_name ; d257~
     db $F8, $FF, $FE, $F6, $F0, $50, 
+
 .map_data  ; d2dd~
     db $76, $17, $C7, 
     db $07, $04, $00, $00, $01, $14, $07, $04, $05, $57, $7F, $77, $7E, $AB, $7D, $00, 
