@@ -57,7 +57,7 @@ while cap.isOpened():
 
     writeAddrInit = 0x9800 if frameCnt % (skipFrame * 2) == 0 else 0x9c00
     prevIndex = 0 if frameCnt % (skipFrame * 2) == 0 else 1
-    preCost = costCnt
+    cost = 0
 
     if quality == 2:
         tileDict = { 0: 3, 85: 2, 170: 1, 255: 0 }
@@ -76,8 +76,7 @@ while cap.isOpened():
                         tileFile.write(hex2input(writeAddr & 0xff)) # 下桁
                         tileFile.write(hex2input(byte))
                     prevFrame[prevIndex][i][j] = byte
-                    costCnt += 3
-    costCnt += 1
+                    cost += 3
 
     # 画面切り替えコマンド
     switchCmd = 0x00 if frameCnt % (skipFrame * 2) == 0 else 0x20
@@ -85,12 +84,15 @@ while cap.isOpened():
         tileFile.write(f"{switchCmd:02x}\n")
     else:
         tileFile.write(hex2input(switchCmd))
-
-    costList.append(costCnt - preCost)
+    cost += 1
+    costList.append(cost)
 
     # 表示のために画像をリサイズ・ピクセルをはっきり表示
     image_4color = cv2.resize(image_4color, (lenX * 25, lenY * 25), interpolation=cv2.INTER_NEAREST)
     cv2.imshow("4 Colors Grayscale", image_4color)
+
+    # 画像保存
+    # cv2.imwrite(f"./img/{frameCnt // skipFrame:05d}.jpg", image_4color)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break

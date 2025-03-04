@@ -17,18 +17,47 @@ def add_dithering(audio, noise_level=0.01):
     noise = np.random.uniform(-noise_level, noise_level, audio.shape)
     return audio + noise
 
+# ローパスフィルター
+def lowpass_filter(audio, cutoff, sr):
+    nyquist = sr / 2
+    norm_cutoff = cutoff / nyquist
+    b, a = scipy.signal.butter(4, norm_cutoff, btype='low', analog=False)
+    return scipy.signal.filtfilt(b, a, audio)
+
+# ハイパスフィルター
+def highpass_filter(audio, cutoff, sr):
+    nyquist = sr / 2
+    norm_cutoff = cutoff / nyquist
+    b, a = scipy.signal.butter(4, norm_cutoff, btype='high', analog=False)
+    return scipy.signal.filtfilt(b, a, audio)
+
+
+# ベースの音を圧縮
+def compress_bass(audio, sr, cutoff=200, radio=4.0, threshold=-20):
+    nyquist = sr / 2
+    norm_cutoff = cutoff / nyquist
+    b, a = scipy.signal.butter(2, norm_cutoff, btype='low', analog=False)
+    low_freq = scipy.signal.filtfilt(b, a, audio)
+
+    low_req_db = 20 * np.log10(np.abs(low_freq) + 1e-6)
+    gain_reduction = np.clip((low_req_db - threshold) / radio, 0, None)
+    gain = 10 ** (-gain_reduction / 20)
+    compressed_low_freq = low_freq * gain
+    return audio - low_freq + compressed_low_freq
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
 # 理想のサンプリング周波数
-rate = 8000
+rate = 9700
 # 量子化サイズ
 quantizeSize = 16
 
-sfq = round((65536 * 32) / rate)
-ifq = sfq // 4
+sfq = int((65536 * 32) / rate)
+ifq = int(sfq / 4)
 # 新しいサンプリングレート
-rate = round((65536 * 32) / sfq)
+# rate = int((65536 * 32) / sfq)
+rate = 9745
 
 print(f"FF1D,1E: {-sfq & 0x7ff:03x}, FF06: {-ifq & 0xff:02x} rate: {rate}Hz")
 
@@ -38,6 +67,15 @@ print(f"FF1D,1E: {-sfq & 0x7ff:03x}, FF06: {-ifq & 0xff:02x} rate: {rate}Hz")
 audio = AudioSegment.from_file("../movies/badapple.mp4", format="mp4")
 audio = audio.set_channels(1).set_frame_rate(44100)
 samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+
+# ローパスフィルターを適用
+# samples = lowpass_filter(samples, 22000, 44100)
+
+# ハイパスフィルターを適用
+samples = highpass_filter(samples, cutoff=100, sr=44100)
+
+# ベースの音を圧縮
+samples = compress_bass(samples, 44100, cutoff=200)
 
 # リサンプリング
 numSamples = int(len(samples) * rate / 44100)

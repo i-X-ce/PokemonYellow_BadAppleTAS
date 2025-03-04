@@ -6,7 +6,7 @@ local inputsound_file = io.open(USERPROFILE .. "sound.txt", 'r') -- 音楽
 
 local scene = 0; -- 0: セットアップ, 1: プログラム入力, 2: グラフィック入力
 local inputprogram_frame_cnt = 1 -- プログラムの何バイト目か
-local movie_frame_cnt = -2 -- 何枚目の画像か
+local movie_frame_cnt = -3 -- 何枚目の画像か
 local sound_frame_cnt = -1 -- 何枚目の音か
 
 if input_file == nil or inputprogram_file == nil then
@@ -79,6 +79,9 @@ on_input = function(subframe)
     end
 
     if scene == 2 then -- グラフィック入力
+        if memory.readbyte(0x1000) == 3 then
+            scene = 3
+        end
         local write_mode = memory.readbyte(0x1003)
 
         if write_mode == 0 then
@@ -90,6 +93,14 @@ on_input = function(subframe)
             line_input(send_data)
             sound_frame_cnt = sound_frame_cnt + 1
         end
+    end
+
+    if scene == 3 then -- 終了
+        local send_data = "B"
+        if frame % 2 == 0 then
+            send_data = send_data .. "A"
+        end
+        line_input(send_data)
     end
 
 end

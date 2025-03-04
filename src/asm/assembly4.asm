@@ -8,8 +8,8 @@ load "ACE", wramx[$d9b2]
 
 BG_addr equ $9800
 WIN_addr equ $9c00
-soundfreq equ $6fa
-interruptfreq equ $bf
+soundfreq equ $728
+interruptfreq equ $ca
 
 sound_buffer equ $c100 ; サウンドバッファ
 
@@ -20,6 +20,7 @@ write_mode equ $d003 ; 書き込みモード 0:画像, 1:音声
 sound_write_cnt equ $d004 ; サウンド書き込みカウンタ
 sound_read_cnt equ $d005 ; サウンド読み込みカウンタ
 write_line equ 9 ; 1frameに書き込む行数
+max_frame equ 6544 * 2 ; 最大フレーム数
 
 main:
     ld a, 2 ; モードの変更
@@ -92,8 +93,8 @@ main:
     .wait_first_frame ; 最初のフレームを待つ
     call step_sound
     ldh a, [$ff00+$44]
-    and a  
-    jr nz, .wait_first_frame
+    cp $10
+    jr nc, .wait_first_frame
 
     ld b, write_line
     .input_vloop
@@ -172,12 +173,33 @@ wait_next_frame: ;次の画面更新まで待つ
 .sound_input_skp
     call step_sound
     ldh a, [$ff00+$44]
+    cp $10
+    jr c, .loop_skp ; step_soundの割り込みで処理が伸びた場合はスキップ
     cp $97
     jr c, .loop
+.loop_skp
     xor a  
     ld [write_mode], a
     ld a, l 
     ld [sound_write_cnt], a
+
+    ; 終了判定
+    ld hl, frame_cnt
+    ld a, 1 
+    add [hl]
+    ld [hli], a
+    ld e, a 
+    ld a, 0 
+    adc [hl]
+    ld [hl], a
+    cp high(max_frame)
+    jr c, .end_skp
+    ld a, e
+    cp low(max_frame)
+    jr c, .end_skp
+    pop hl 
+    jp ending
+.end_skp 
     ret 
 
 
@@ -280,6 +302,81 @@ step_sound:
 
 .sound_cnt
     db $10 
+
+; 何フレーム目か
+frame_cnt: 
+    dw 0
+
+; 映像終了後の処理
+ending:
+    ld a, 3 
+    ld [scene_addr], a
+
+    ; マップデータ
+    ld hl, .map_data
+    ld de, $d2dd
+    ld bc, .map_data_end - .map_data
+    call block_move
+
+    ; 主人公の名前とポケモンデータ
+    ld hl, .pokemon_data
+    ld de, $d11d
+    ld bc, .pokemon_data_end - .pokemon_data
+    call block_move
+    ld hl, .pokemon_data
+    ld de, $d239
+    ld bc, 6 
+    call block_move
+    ld hl, .pokemon_name
+    ld de, $d257
+    ld bc, 6
+    call block_move
+
+    ; おこづかい
+    ld a, $99 
+    ld hl, $d2cb
+    ld [hli], a
+    ld [hli], a
+    ld [hl], a
+
+    ; プレイじかん
+    ld hl, $d97d
+    ld a, $ff
+    ld [hli], a
+    ld [hli], a
+    ld a, 59 
+    ld [hl], a
+
+    ; ポケモンずかん
+    ld hl, $d27b
+    ld bc, 38
+    ld a, $ff
+    call memset
+    ld a, $7f 
+    ld [$d28d], a
+    ld [$d2a0], a 
+
+    ld a, $e3
+    ldh [$ff00+$40], a
+    ld b, $01
+    ld hl, $5ba9
+    ei
+    jp $3e7e
+
+.pokemon_data ; d11d~
+    db $80, $ED, $81, 
+    db $8C, $50, $00, $01, $24, $FF, $FF, $FF, $FF, $FF, $FF, $24, $03, $E7, $64, $00, 
+    db $00, $07, $FF, $13, $3F, $62, $01, $00, $00, $10, $2C, $14, $FF, $FF, $FF, $FF, 
+    db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $F8, $F8, $F8, $F8, $64, $03, $E7, $03, 
+    db $E7, $03, $E7, $03, $E7, $03, $E7,
+.pokemon_data_end
+.pokemon_name ; d257~
+    db $F8, $FF, $FE, $F6, $F0, $50, 
+.map_data  ; d2dd~
+    db $76, $17, $C7, 
+    db $07, $04, $00, $00, $01, $14, $07, $04, $05, $57, $7F, $77, $7E, $AB, $7D, $00, 
+    db $0D, $D0, $41, $F0, $C6, $0A, $0A, $47, $F6, $29, $C9, $0C, $FC, $40, $12, 
+.map_data_end
 
 end_cmd: ; 終端のコマンド
     db $fd, $fd, $fd

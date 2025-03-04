@@ -4,3 +4,4 @@ src/movies/badapple.mp4
 src/python/music/
 src/lua/
 !src/lua/run.lua
+src/python/img/
