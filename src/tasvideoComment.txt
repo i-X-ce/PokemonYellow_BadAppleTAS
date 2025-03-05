@@ -1,0 +1,229 @@
+J r3
+Pokémon: Yellow Version
+lsnes rr2-β23
+
+i>ce
+apple%
+Pocket Monsters - Pikachu (Japan) (Rev 3) (SGB Enhanced).gb
+https://www.nicovideo.jp/watch/sm44724477
+
+%%TOC%%
+
+!!! Game objectives
+
+* Emulator used: lsnes rr2-β23
+* Aiming for fastest arbitrary code execution in the yellow version of the Japanese version.
+* Ensure that the highest possible quality Bad Apple! to be played.
+
+!!! Comments
+
+I created this run based on the  [5384S|Amazing Run]  created in 2017 using the Yellow version and the [8991S|Amazing Run] created in 2024 using the NES version of Mario Bros. I was so impressed by the sheer precision of both runs and the beautiful graphics that I decided to try and create a similar run myself.%%%
+I had previously used BizHawk to create a [https://www.nicovideo.jp/watch/sm42590404|TAS video] playing BadApple, but BizHawk only allows one input per frame, so there were major issues with resolution and frame rate. Also, at this input speed, the data sent in real-time cannot be output directly to the screen in time, so the video is created by saving the data once in SRAM and rewriting the image based on it. Therefore, the capacity of the moving image depended on the storage capacity of the SRAM, and there was no choice but to create a moving image with an extremely low frame rate and resolution. Furthermore, it was extremely difficult to store even audio with such data capacity, so implementation was not possible.%%%
+The two runs referred to show that being able to input buttons in subframe units is a prerequisite. In this run, I reviewed the emulator and decided to use lsnes, which allows subframe-by-subframe input (I should have used this in the previous run, but I didn't know how to handle it due to my lack of knowledge). This freed me from the once-per-frame input limit and allowed me to send about 260 bytes of data per frame. The significant increase in the amount of data that could be sent solved the problems of low frame rate and resolution, and also enabled the successful output of sound.%%%
+
+----
+
+!!! Stage by stage comments
+This run was based on [5384S|one produced] by [user:MrWint], so in many respects the means used are similar.
+
+!! ACE set-up
+
+As with MrWing's, the execution is carried out in three phases.
+
+!  First stage
+
+After a successful SRAM glitch, swap the Pokémon in your possession as follows and run the map script execution. In the procedure below, the order is shown by (Pokémon number to swap->Pokémon number to swap to). The text next to it describes what is happening at the time.
+
+# 1 -> 9 Expand the どうぐ
+# 4 -> 21 0xFF chunks to set memory
+# せってい(0xF5) 0xFF lumps to 0xF5
+# 21 -> 14 Pull the 0xFF lump upwards
+# Adjustment of どうぐ
+## 4th わざマシン55 throw away everything
+## 3rd わざマシン55 throw away everything
+## 2nd わざマシン55 118 (76h)
+## 3rd わざマシン45 240 (F0h)
+## 4th わざマシン45 34  (22h)
+# 21 -> 26 Script the name of the competitor
+# 25 -> 15 Connecting separated rival names て(0xC3)
+# 14 -> 24 Bump in the adjusted code
+
+After completing this procedure, closing the menu and returning to the map immediately executes the map script and the 0xD2E1~ code that has been planted in the rival's name is executed. The {{push af}} and {{jr nc, D2EC}} with {{*}} on the way are rubbish that appears when replacing the equipment and can be ignored on execution.
+
+ WRA1:D2E1 76               halt
+ WRA1:D2E2 F5               push af ; *
+ WRA1:D2E3 F0 F5            ld   a,(ff00+F5)
+ WRA1:D2E5 22               ldi  (hl),a
+ WRA1:D2E6 F5               push af ; *
+ WRA1:D2E7 00               nop
+ WRA1:D2E8 00               nop
+ WRA1:D2E9 00               nop
+ WRA1:D2EA 30 00            jr   nc,D2EC ; *
+ WRA1:D2EC C3 E1 D2         jp   D2E1
+
+By executing this code, the code 0xD2E1~ is rewritten using the button input, resulting in the following final code.
+
+ WRA1:D2E1 76               halt
+ WRA1:D2E2 00               nop
+ WRA1:D2E3 F0 F5            ld   a,(ff00+F5)
+ WRA1:D2E5 22               ldi  (hl),a
+ WRA1:D2E6 3C               inc  a
+ WRA1:D2E7 28 06            jr   z,D2EF
+ WRA1:D2E9 00               nop
+ WRA1:D2EA 00               nop
+ WRA1:D2EB 00               nop
+ WRA1:D2EC C3 E1 D2         jp   D2E1
+
+This rewrite adds an exit condition to the original code, which had been an infinite loop, allowing it to express the end of execution. This code is used to write the second stage code into memory below.%%%
+The second stage code has {{0xFF(rst 38)}} at the end, which is read to determine that the first stage has finished reading. The moment this is written, the second stage code of 0xD2EF~ is executed.
+
+! Second stage 
+
+Write the following code in the code created in the first stage directly below the code of the first stage.  %%%
+From this code, all controller inputs in subframes are free and free from memory limitations.%%%
+This code receives the controller input in subframes and writes 0xD9B2~ the received number. This code is used to write the 593-byte third stage code.
+
+ WRA1:D2EF 3E 01            ld   a,01
+ WRA1:D2F1 EA 00 D0         ld   (D000),a
+ WRA1:D2F4 F3               di
+ WRA1:D2F5 21 B2 D9         ld   hl,D9B2
+ WRA1:D2F8 3E 10            ld   a,10
+ WRA1:D2FA E0 00            ld   (ff00+00),a
+ WRA1:D2FC F0 00            ld   a,(ff00+00)
+ WRA1:D2FE 47               ld   b,a
+ WRA1:D2FF CB 30            swap b
+ WRA1:D301 F0 00            ld   a,(ff00+00)
+ WRA1:D303 A8               xor  b
+ WRA1:D304 22               ldi  (hl),a
+ WRA1:D305 47               ld   b,a
+ WRA1:D306 FE FD            cp   a,FD ; Processing of the end of the Second stage
+ WRA1:D308 20 0E            jr   nz,D318
+ WRA1:D30A FA 1E D3         ld   a,(D31E)
+ WRA1:D30D 3C               inc  a
+ WRA1:D30E EA 1E D3         ld   (D31E),a
+ WRA1:D311 FE 03            cp   a,03
+ WRA1:D313 D2 B2 D9         jp   nc,D9B2
+ WRA1:D316 18 E4            jr   D2FC
+ WRA1:D318 AF               xor  a
+ WRA1:D319 EA 1E D3         ld   (D31E),a
+ WRA1:D31C 18 DE            jr   D2FC
+ WRA1:D31E 00               nop
+ WRA1:D31F FF               rst  38 ; First stage end command
+
+In the second stage, as in the first stage, a termination condition is attached by a terminating character. The code in the third stage is terminated with three {{0xFD}} characters to indicate the end of the code. Originally, this code should have been shortened to 1 byte, but in order to ensure flexibility in the code, we decided to use 3 bytes to indicate the end of the code.  
+---Between you and me, it was a pain to find the numbers I didn't use...---
+
+! Third stage
+
+It executes the code written in the second stage. It is responsible for initialising the tiles and outputting images and sound.%%%
+The set-up is now ready for arbitrary code execution up to video output.
+
+!! Execution of code
+
+It executes the code written in the second step.%%%
+What this code does is as follows.
+
+# Rewriting tiles
+# write the input at the controller to VRAM
+# write the input at the controller to the waveform memory
+# finish writing and rewrite the memory for the map, player's name, Pokémon status, etc. and watch the ending
+
+While rewriting, the image is output by looping through 2 and 3. A single screen of images requires 360 bytes (18*20 squares). This code acquires 180 bytes per frame and updates the screen once every two frames to maintain approximately 30 fps.%%%
+The audio is output at approximately 9709 Hz, which consists of 4 bits per sample and requires approximately 80 bytes per frame. Adding up the image and sound data, a frame loop consumes 180 + 80 = 260 bytes, requiring input at approximately 16,000 Hz.
+
+For further information, see [https://github.com/i-X-ce/PokemonYellow_BadAppleTAS/blob/main/src/asm/assembly4.asm|source code].
+
+!! ending
+
+The Bad Apple! and head towards the ending.%%%
+To start the ending, rewrite the map data, player names, Pokémon status, Pokémon's kits, spending money, play time, etc., in advance.%%%
+The ending is performed by running the programme that originally exists in the ROM.
+The game is now complete, GG!
+
+----
+!!! Ingenuity in production
+
+This run was produced with various innovations and improvements from [https://www.nicovideo.jp/watch/sm42590404|previous run]. In particular, there are quite few documents on lsnes, and I could find very few articles (especially in Japanese) by people who actually use it, so I will leave them lightly here, including as a reminder, in the hope that they will be of use to someone else.
+
+!! Combined use of emulators
+
+lsnes is a very good emulator that supports subframe-based input and has high reproducibility in terms of audio and VRAM, but as a tool for creating TASvideo it is a little quirky and difficult to handle.%%%
+Therefore, I decided to use BizHawk in situations where I did not need to input data in units of subframes up to set-up. This is then read by the lua script and the controller input is executed from the script. Fortunately, the minimum necessary functions such as soft reset were also provided, so it was easy to create.
+
+%%SRC_EMBED <hilighting>
+ -- Example of lua code
+ function line_input(line)
+     local input_flg = {["A"] = false, ["B"] = false, ["s"] = false, ["S"] = false, ["R"] = false, ["L"] = false, ["U"] = false, ["D"] = false}
+     for i = 1, #line do
+         local char = string.sub(line, i, i)
+         local button = input_dict[char]
+         if button == -1 then
+             input.reset()
+             return
+         end
+         if button ~= nil then
+             input_flg[char] = true
+         end
+     end
+     for key, value in pairs(input_flg) do
+         if value then
+             input.set(0, input_dict[key], 1)
+         else
+             input.set(0, input_dict[key], 0)
+         end
+     end
+ end
+%%END_EMBED
+
+However, the barrier here was the difference in the way the emulator worked. In the previous run, there were several occasions where the instrument with internal number 0x00 was selected or discarded, but the timing of the freeze here was quite severe, and it seemed that if there were slight differences in the emulation method, the emulator might freeze.%%%
+In fact, in BizHawk, when I tried to run lsnes with successful input data, it kept freezing and did not work as I wanted it to. We tried delaying the input by a few frames, but this also ended in failure. In addition to freezing, the time required for scrolling varies because the length of the name changes depending on the method of emulation of the 0x00 toy when moving the toy column, and this causes a large difference in movement. In the early version (r0), this is not a problem because the name of the 0x00 instrument is fixed, but only in the later version is it possible to input every frame to 0xFFF5, so there is no choice but to execute it in the later version%%%
+After some trial and error, we changed the set-up procedure slightly from the previous run, and developed a procedure whereby the 0x00 toy does not appear in the screen. As a result, the time has been reduced compared to the previous run, and the run is now more reliable. I can't say for sure that this is the best way to do it, but I'm pleased that I was able to come up with a reliable, version-independent way to run it.
+
+!! Image
+The image is represented by 36*40 dots, with tiles as the smallest unit; each tile consists of 4 squares of 2*2, each of which can have 4 colours: white, light grey, dark grey and black. 4 squares have 4 types, so there are 4^4 256 tile types, which just matches the Game Boy tiles' This matches the Game Boy tile types and fits perfectly within the VRAM.%%%
+I would have liked to use the original tiles as in [8991S|OnehundredthCoin's video], but as there are only a few Pokémon tiles that use black, I decided that it would be difficult to express them nicely, and decided to rewrite the tiles as a whole.
+
+For the conversion of the video, Python's Cv2 was used. The code for the conversion is as follows Here the conversion to the input text file is also done at the same time.
+
+%%SRC_EMBED <hilighting>
+# Python code example.
+tileDict = { 0: 0, 85: 1, 170: 2, 255: 3 }
+inputDict = { 0: "A", 1: "B", 2: "s", 3: "S" }
+for i in range(0, lenY):
+    for j in range(0, lenX):
+        byte = 0
+        for k in range(0, 2):
+            for l in range(0, 2):
+                byte = byte * 4 + tileDict[image_4color[i * 2 + k][j * 2 + l][0]]
+        for m in range(0, 2):
+            writeStr = ""
+            for key, value in inputDict.items():
+                if (not (byte >> (0 if m == 0 else 4)) & (1 << key)) ^ (key == 1):
+                    writeStr += value
+                else:
+                    writeStr += "."
+            tileFile.write(writeStr + "\n")
+%%END_EMBED
+
+The rewriting of the image is based on the video by OnehundredthCoin, and the window and BG are alternately rewritten half by half, the window display is enabled once every two frames, and the image is displayed at approximately 30 fps.%%%
+The video content is not compressed and is input as it is. As for the method of compression, I was thinking of performing differential compression similar to OnehundredthCoin's, but the lsnes specification impairs the stability of the input and the input may shift by 4 bits, or the amount of data required may vary greatly from frame to frame, so I had to abandon the idea. In fact, this should have been compressed as well...
+
+!! Sound
+I had very little knowledge of audio output and referred to MrWint's [5384S|article], but this was the point where I had the most difficulty.%%%
+To summarise pretty well what we are doing, it is a simple story of rewriting the waveform memory at the right time. How MrWint timed the rewrites is a mystery, but I was able to get the timing right. I adjust the timer interrupt to write to the 16-byte waveform memory at once, just after all 32 samples in the waveform memory have been read. The frequency of ch3 is adjusted at {{65536 / x}}Hz for all 32 samples. In this case {{x = 216}}, so the audio output will be at {{32 * 65536 / 216 = 9709}}Hz. The timer interrupt on the other hand is adjusted at {{262144 / y}}Hz, this time with {{y = 54}}, so the interrupt is triggered at {{262144 / 54 = 4854}}Hz. If the timing of the 16 interrupts is the same as the frequency of ch3, the audio output can be adjusted successfully. The audio output can be synchronised with the interrupts by applying the equation {{x = 4y}}. The advantage of using timer interrupts is that they can be implemented separately from the screen output; MrWint [5384S|article] wrote that the rewriting of the waveform memory is synchronised to the V-Blank, but by using timer interrupts, there is no need to synchronise the image by itself and the timing can be automatically timed. This makes it possible to measure the timing automatically. This allows the sampling rate of the audio to be adjusted flexibly (although this is only a creative device and does not affect the quality of the video at all...).%%%
+The sound quality, as you can hear, is not very good due to the 4-bit quantisation and low sampling rate. Noise was especially bad at low frequencies, so I had to reduce the quality of the sound by applying a high-pass filter to the original source to reduce the low-frequency sounds.%%%
+In contrast, MrWint achieved quantisation of over 100 by adjusting the master volume, and the sampling rate is more than twice higher than my own, so the sound quality is quite good. I couldn't have copied this technique. What on earth is happening...?
+There is still room for improvement when it comes to sound.
+
+!! source code
+
+All the source code used in this run is available [https://github.com/i-X-ce/PokemonYellow_BadAppleTAS|here].%%%
+Many of them were written temporarily when needed, so I may not be able to answer your questions.%%%
+In addition, the items compiled here have only been tested in my own environment and may not work properly.
+
+----
+
+!!! At the end
+
+We were able to produce a video of much better quality than our previous challenges in this run. Although we still have some work to do, we are happy with the improved resolution and frame rate, and the audio output. My regrets are that the video did not compress well and the audio quality is quite low. I tried my best to work on both, but with my knowledge and skills, the current quality was the limit. I am a little disappointed that I was able to surpass my previous goal, but not quite up to the quality of MrWint's and OnehundredthCoin's videos.%%%
+I would like to express my gratitude to both of them for inspiring me to create my own. I would also like to express my gratitude to Bad Apple! 's Kagee MV, I would like to pay tribute to all the people who produced it! Thank you for the wonderful video!
